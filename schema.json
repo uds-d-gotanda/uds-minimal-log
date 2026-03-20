@@ -1,0 +1,10 @@
+{
+  "id": "自動採番",
+  "title": "20〜40文字のタイトル",
+  "date": "YYYY-MM-DD",
+  "summary": "80〜100文字の要約",
+  "content": "## 見出しを含む本文（Markdown形式）",
+  "isVisible": true,
+  "category": "it-notes", 
+  "updatedAt": "タイムスタンプ"
+}
