@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT担当者の雑記アーカイブ</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel (JSXコンパイル用) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+    .custom-serif { font-family: 'Hiragino Mincho ProN', 'Noto Serif JP', serif; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .tracking-tight { letter-spacing: -0.015em; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // --- アイコンコンポーネント (外部依存をなくすためのSVGインライン実装) ---
+    const Icon = ({ children, size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {children}
+      </svg>
+    );
+    const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></Icon>;
+    const ArrowLeft = (p) => <Icon {...p}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></Icon>;
+    const Type = (p) => <Icon {...p}><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></Icon>;
+    const Sun = (p) => <Icon {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></Icon>;
+    const Moon = (p) => <Icon {...p}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></Icon>;
+    const X = (p) => <Icon {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
+    const Filter = (p) => <Icon {...p}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></Icon>;
+    const Clock = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
+    const Info = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></Icon>;
+
+    // --- サイト設定とデータ ---
+    const SITE_TITLE = "IT担当者の雑記アーカイブ";
+
+    const generateMockPosts = () => {
+      const posts = [
+        { id: 101, title: "もしかして新型出る？ Mac miniなどの納期から考える春の予感", date: "2026-03-20", displayDate: "2026年3月20日", year: "2026", month: "2026年3月", isVisible: true, summary: "3月は年度末ということもあり、例年通りバタバタとしています。今年のシステム更新は特に生成AIの導入が鍵となります。ハードウェアの納期遅延から読み取れる次世代機の噂についても触れておきましょう。", content: "## 今年度の総括\n\n文字の力だけで十分に伝わるアーカイブを目指しています。" },
+        { id: 201, title: "2月のセキュリティ強化月間に寄せて：今すぐできる3つの対策", date: "2026-02-25", displayDate: "2026年2月25日", year: "2026", month: "2026年2月", isVisible: true, summary: "フィッシング詐欺が増加傾向にあります。改めて社内パスワードポリシーの再確認をお願いします。", content: "本文..." },
+        { id: 202, title: "リモートワーク環境の再定義：生産性を最大化するガジェット", date: "2026-02-10", displayDate: "2026年2月10日", year: "2026", month: "2026年2月", isVisible: true, summary: "ハイブリッドワークが定着した今、オフィスのITインフラはどうあるべきか。", content: "本文..." },
+      ];
+      for (let y = 2025; y >= 2012; y--) {
+        posts.push({
+          id: y,
+          title: `${y}年度のITインフラ回顧録と当時の標準構成`,
+          date: `${y}-12-20`,
+          displayDate: `${y}年12月20日`,
+          year: y.toString(),
+          month: `${y}年12月`,
+          isVisible: true,
+          summary: `${y}年当時のサーバー環境や、今では懐かしい技術仕様について振り返ります。`,
+          content: "歴史を感じる内容..."
+        });
+      }
+      return posts;
+    };
+
+    const MOCK_POSTS = generateMockPosts();
+
+    // --- メインコンポーネント ---
+    const App = () => {
+      const [view, setView] = useState('index'); 
+      const [selectedPost, setSelectedPost] = useState(null);
+      const [theme, setTheme] = useState('dark');
+      const [fontFamily, setFontFamily] = useState('sans');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [selectedYear, setSelectedYear] = useState('All'); 
+      const [visibleMonthsCount, setVisibleMonthsCount] = useState(5);
+
+      // アクセシビリティを改善した最新のテーマ設定
+      const themeStyles = {
+        white: { 
+          bg: 'bg-[#F2F2F7]', surface: 'bg-[#FFFFFF]', 
+          text: 'text-[#48484A]', 
+          muted: 'text-[#636366]', 
+          accent: 'text-[#007AFF]',
+          divider: 'border-[#D1D1D6]', 
+          btn: 'bg-[#FFFFFF] shadow-sm active:bg-[#F2F2F7]',
+          chipActive: 'bg-[#FFFFFF] text-[#48484A] shadow-md ring-1 ring-black/5', 
+          chipInactive: 'text-[#636366] hover:text-[#000000]',
+          searchBg: 'bg-[#E3E3E8]', segmentedBg: 'bg-[#E3E3E8]', 
+          readingGreen: 'text-[#0D5020]', 
+          fadeEdge: 'from-[#E3E3E8] to-transparent',
+          cardHover: 'hover:shadow-xl hover:-translate-y-0.5' 
+        },
+        dark: { 
+          bg: 'bg-[#161618]', surface: 'bg-[#222224]', 
+          text: 'text-[#F5F5F7]', 
+          muted: 'text-[#A1A1A6]', 
+          accent: 'text-[#0A84FF]',
+          divider: 'border-[#3A3A3C]', 
+          btn: 'bg-[#2A2A2C] active:bg-[#3A3A3C]',
+          chipActive: 'bg-[#48484A] text-[#F5F5F7] shadow-lg', 
+          chipInactive: 'text-[#A1A1A6] hover:text-[#F5F5F7]',
+          searchBg: 'bg-[#2A2A2C]', segmentedBg: 'bg-[#2A2A2C]', 
+          readingGreen: 'text-[#81C995]',
+          fadeEdge: 'from-[#161618] to-transparent',
+          cardHover: 'hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-0.5'
+        }
+      };
+
+      const s = themeStyles[theme] || themeStyles.dark;
+
+      const fontStack = fontFamily === 'serif' 
+        ? "'Hiragino Mincho ProN', 'Noto Serif JP', serif" 
+        : "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', 'Noto Sans JP', sans-serif";
+
+      const h1Style = { fontFamily: fontStack, fontSize: '52px', fontWeight: '700', lineHeight: '1.1', marginTop: '34px', marginBottom: '34px', tracking: 'tight' };
+      const h2Style = { fontFamily: fontStack, fontSize: '39px', fontWeight: '700', lineHeight: '1.2', marginTop: '32px', marginBottom: '32px', tracking: 'tight' };
+      const bodyTextStyle = { fontFamily: fontStack, fontSize: '26px', fontWeight: '400', lineHeight: '1.45', marginBottom: '2rem' };
+
+      const availableYears = useMemo(() => {
+        const years = [...new Set(MOCK_POSTS.filter(p => p.isVisible).map(p => p.year))];
+        return years.sort((a, b) => b - a);
+      }, []);
+
+      const filteredPosts = useMemo(() => {
+        return MOCK_POSTS.filter(post => {
+          if (!post.isVisible) return false;
+          const query = searchQuery.toLowerCase();
+          const matchesSearch = post.title.toLowerCase().includes(query) || post.summary.toLowerCase().includes(query);
+          const matchesYear = selectedYear === 'All' || post.year === selectedYear;
+          return matchesSearch && matchesYear;
+        }).sort((a, b) => new Date(b.date) - new Date(a.date));
+      }, [searchQuery, selectedYear]);
+
+      const isSearchingOrFiltering = searchQuery.length > 0 || selectedYear !== 'All';
+      const latestPost = filteredPosts[0];
+      const archivePosts = filteredPosts.slice(1);
+
+      const groupedArchives = archivePosts.reduce((acc, post) => {
+        if (!acc[post.month]) acc[post.month] = [];
+        acc[post.month].push(post);
+        return acc;
+      }, {});
+
+      const monthKeys = Object.keys(groupedArchives);
+      const visibleMonthKeys = monthKeys.slice(0, visibleMonthsCount);
+
+      const calculateReadingTime = (post) => {
+        if (!post) return 1;
+        const charCount = (post.content?.length || 0) + (post.summary?.length || 0);
+        return Math.ceil(charCount / 500) || 1;
+      };
+
+      const handleOpenArticle = (post) => {
+        setSelectedPost(post);
+        setView('article');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const renderParsedContent = (text) => {
+        if (!text) return null;
+        const lines = text.split('\n');
+        let result = [];
+        let currentParagraph = [];
+        lines.forEach((line, index) => {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('## ')) {
+            if (currentParagraph.length > 0) {
+              result.push(<p key={`p-${index}`} style={bodyTextStyle}>{currentParagraph.join(' ')}</p>);
+              currentParagraph = [];
+            }
+            result.push(<h2 key={`h2-${index}`} style={h2Style}>{trimmedLine.replace('## ', '')}</h2>);
+          } else if (trimmedLine === '') {
+            if (currentParagraph.length > 0) {
+              result.push(<p key={`p-${index}`} style={bodyTextStyle}>{currentParagraph.join(' ')}</p>);
+              currentParagraph = [];
+            }
+          } else {
+            currentParagraph.push(line);
+          }
+        });
+        if (currentParagraph.length > 0) result.push(<p key="p-last" style={bodyTextStyle}>{currentParagraph.join(' ')}</p>);
+        return result;
+      };
+
+      // メタデータ表示コンポーネント (フォントサイズを16pxに拡大)
+      const MetaRow = ({ post, className = "" }) => (
+        <div className={`flex items-center gap-2 text-[16px] font-semibold ${className}`}>
+          <span className={s.muted}>{post.displayDate}</span>
+          <span className={`${s.muted} opacity-40 font-normal`}>•</span>
+          <span className={s.readingGreen}>読了目安 {calculateReadingTime(post)} 分</span>
+        </div>
+      );
+
+      return (
+        <div className={`min-h-screen ${s.bg} ${s.text} transition-colors duration-500 antialiased`} style={{ fontFamily: fontStack }}>
+          
+          {/* Navigation */}
+          <nav className={`sticky top-0 z-50 ${s.bg}/70 backdrop-blur-2xl border-b ${s.divider} px-6 py-4`}>
+            <div className="max-w-[1000px] mx-auto flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <button onClick={() => { setView('index'); setSearchQuery(''); setSelectedYear('All'); }} className={`p-2 rounded-full transition-all ${view === 'index' && !isSearchingOrFiltering ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100 hover:bg-current/10'}`} disabled={view === 'index' && !isSearchingOrFiltering}><ArrowLeft size={20} /></button>
+                <span className="text-[15px] font-bold tracking-tight">{SITE_TITLE}</span>
+              </div>
+              <div className="flex items-center gap-1 bg-current/5 p-1 rounded-xl">
+                <button onClick={() => setFontFamily(fontFamily === 'sans' ? 'serif' : 'sans')} className={`p-2 rounded-lg hover:bg-current/10 transition-colors`}><Type size={18} /></button>
+                <div className={`w-[1px] h-4 mx-1 ${s.divider} border-l`} />
+                <button onClick={() => setTheme('white')} className={`p-2 rounded-lg ${theme === 'white' ? 'bg-white shadow-sm' : ''}`}><Sun size={18}/></button>
+                <button onClick={() => setTheme('dark')} className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-[#3A3A3C] shadow-sm' : ''}`}><Moon size={18}/></button>
+              </div>
+            </div>
+          </nav>
+
+          <main className={`max-w-[1000px] mx-auto px-6 py-12`}>
+            {view === 'index' ? (
+              <div className="space-y-16">
+                
+                {/* 検索・年度フィルター */}
+                <div className="space-y-8">
+                  <div className="relative group w-full">
+                    <Search className={`absolute left-6 top-1/2 -translate-y-1/2 opacity-30 group-focus-within:opacity-100 group-focus-within:${s.accent} transition-opacity`} size={24} />
+                    <input 
+                      type="text"
+                      placeholder="キーワードでアーカイブを検索"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full pl-16 pr-14 py-5 rounded-[1.5rem] ${s.searchBg} border-none outline-none transition-all text-xl font-medium shadow-sm focus:ring-4 focus:ring-blue-500/10 placeholder:text-current/25`}
+                    />
+                    {searchQuery.length > 0 && (
+                      <button onClick={() => setSearchQuery('')} className="absolute right-6 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-100 transition-opacity">
+                        <X size={24} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-1 text-[13px] font-bold opacity-40 uppercase tracking-widest">
+                      <Filter size={14} />
+                      <span>Year Archive</span>
+                    </div>
+                    <div className="relative w-full overflow-hidden">
+                      <div className={`flex p-1.5 rounded-2xl ${s.segmentedBg} overflow-x-auto hide-scrollbar scroll-smooth`}>
+                        <button onClick={() => setSelectedYear('All')} className={`px-8 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 ${selectedYear === 'All' ? s.chipActive : s.chipInactive}`}>すべて</button>
+                        {availableYears.map(year => (
+                          <button key={year} onClick={() => setSelectedYear(year)} className={`px-8 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 ${selectedYear === year ? s.chipActive : s.chipInactive}`}>{year}年</button>
+                        ))}
+                      </div>
+                      <div className={`absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l ${s.fadeEdge} pointer-events-none z-20`}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {isSearchingOrFiltering ? (
+                  <div className="animate-in fade-in duration-500">
+                    <div className={`text-3xl font-bold tracking-tight mb-12`}>"{searchQuery || selectedYear}" の検索結果</div>
+                    <div className="space-y-16">
+                      {filteredPosts.map(post => (
+                        <article key={post.id} className="group cursor-pointer max-w-3xl" onClick={() => handleOpenArticle(post)}>
+                          <MetaRow post={post} className="mb-2" />
+                          <h4 className={`text-[2.25rem] font-bold leading-tight tracking-tight mb-4 group-hover:${s.accent} transition-colors`}>{post.title}</h4>
+                          <p className="text-[1.25rem] opacity-60 leading-relaxed line-clamp-2">{post.summary}</p>
+                        </article>
+                      ))}
+                      {filteredPosts.length === 0 && (
+                        <div className="py-24 text-center opacity-40">
+                          <Search size={64} className="mx-auto mb-6" />
+                          <p className="text-2xl font-medium tracking-tight">該当する記事は見つかりませんでした</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-32 animate-in fade-in duration-700">
+                    {/* 1. Hero */}
+                    {latestPost && (
+                      <section className="space-y-6">
+                        <div className={`text-[13px] font-bold uppercase tracking-[0.1em] ${s.muted} px-4`}>Latest Weekly Insight</div>
+                        {/* ホバーエフェクト s.cardHover を適用 */}
+                        <div className={`${s.surface} rounded-[2.75rem] p-10 md:p-16 cursor-pointer shadow-2xl shadow-black/5 transition-all duration-300 ${s.cardHover}`} onClick={() => handleOpenArticle(latestPost)}>
+                          <div className="flex flex-col gap-8">
+                            <MetaRow post={latestPost} />
+                            <h2 className={`text-[2.75rem] md:text-[3.5rem] font-bold leading-[1.05] tracking-tighter ${s.text} max-w-4xl`}>{latestPost.title}</h2>
+                            <p className={`text-[1.4rem] leading-[1.6] ${s.muted} line-clamp-3 font-medium`}>{latestPost.summary}</p>
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 2. Monthly Archives */}
+                    <div className="space-y-32">
+                      {visibleMonthKeys.map(month => {
+                        const posts = groupedArchives[month];
+                        const featured = posts[0];
+                        const remainings = posts.slice(1);
+                        const count = posts.length;
+
+                        return (
+                          <section key={month} className="space-y-8">
+                            <div className={`flex items-baseline gap-4 px-4`}>
+                              <h3 className="text-[2.25rem] font-bold tracking-tight">{month}</h3>
+                            </div>
+                            
+                            {/* ホバーエフェクト s.cardHover を適用 */}
+                            <div className={`${s.surface} rounded-[2.75rem] p-10 md:p-16 shadow-2xl shadow-black/5 transition-all duration-300 ${s.cardHover}`}>
+                              <div className="flex flex-col lg:flex-row gap-16">
+                                <div className={count === 1 ? "w-full" : "lg:w-[40%] shrink-0"}>
+                                  <div className={`group cursor-pointer h-full flex flex-col`} onClick={() => handleOpenArticle(featured)}>
+                                    <MetaRow post={featured} className="mb-4" />
+                                    <h4 className={`font-bold leading-tight mb-6 ${count === 1 ? 'text-[2.5rem]' : 'text-[2rem]'} tracking-tight group-hover:opacity-60 transition-opacity`}>{featured.title}</h4>
+                                    <p className={`leading-relaxed line-clamp-5 ${s.muted} text-[1.15rem] font-medium`}>{featured.summary}</p>
+                                  </div>
+                                </div>
+                                
+                                {count > 1 && (
+                                  <div className="lg:w-[60%] flex flex-col gap-0">
+                                    <div className={`divide-y ${s.divider}`}>
+                                      {remainings.map((post, index) => (
+                                        <div key={post.id} className={`py-8 ${index === 0 ? "pt-0" : ""} group cursor-pointer`} onClick={() => handleOpenArticle(post)}>
+                                          <MetaRow post={post} className="mb-2" />
+                                          <h5 className="text-[1.5rem] font-bold leading-tight tracking-tight group-hover:opacity-50 transition-opacity">{post.title}</h5>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </section>
+                        );
+                      })}
+                    </div>
+
+                    {visibleMonthsCount < monthKeys.length && (
+                      <div className="text-center py-20 border-t-2 border-current/5">
+                        <button onClick={() => setVisibleMonthsCount(prev => prev + 2)} className={`px-12 py-4 rounded-2xl ${s.surface} text-[15px] font-bold tracking-tight hover:scale-105 active:scale-95 transition-all shadow-sm`}>以前の記録を読み込む</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Reader View */
+              <div className="animate-in fade-in duration-700 pb-32 max-w-[800px] mx-auto">
+                <header className="mb-20">
+                  <div className="flex items-center gap-3 mb-6 text-[16px] font-semibold">
+                    <span className={s.muted}>{selectedPost.displayDate}</span>
+                    <span className={`${s.muted} opacity-40 font-normal`}>•</span>
+                    <div className={`flex items-center gap-1.5 ${s.readingGreen}`}>
+                      <Clock size={18} />
+                      <span>読了目安 {calculateReadingTime(selectedPost)} 分</span>
+                    </div>
+                  </div>
+                  <h1 style={h1Style} className={`${s.text} tracking-tighter`}>{selectedPost.title}</h1>
+                </header>
+
+                <div className="space-y-12">
+                  <p style={bodyTextStyle} className="opacity-90 font-medium leading-relaxed">{selectedPost.summary}</p>
+
+                  <div className={`my-16 p-10 rounded-[2.5rem] ${s.surface} flex items-center gap-8 shadow-sm`}>
+                    <div className="p-3 bg-blue-500/10 rounded-2xl shrink-0">
+                      <Info className="text-blue-500" size={32} />
+                    </div>
+                    <p className="text-[1.25rem] leading-relaxed font-semibold">
+                      この記事は社内配信された <strong>{selectedPost.displayDate}</strong> の記録をベースにしています。
+                    </p>
+                  </div>
+
+                  <div className={`h-[1px] w-full ${s.divider} border-t my-16`}></div>
+                  
+                  <article className="article-content">
+                    {renderParsedContent(selectedPost.content)}
+                  </article>
+                </div>
+
+                <footer className={`mt-48 pt-12 border-t ${s.divider} flex justify-center opacity-20 text-[11px] font-black uppercase tracking-[0.4em]`}>
+                  End of Message
+                </footer>
+              </div>
+            )}
+          </main>
+
+          <footer className="py-24 text-center opacity-10">
+            <div className="w-1.5 h-1.5 mx-auto bg-current rounded-full" />
+          </footer>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
