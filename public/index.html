@@ -13,25 +13,42 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js';
 
-    // ⚠️ Firebaseのプロジェクト設定（ご自身のAPIキーが入っている状態にしてください）
-    const firebaseConfig = {
-      projectId: "uds-portal-tools",
-      apiKey: "AIzaSyAvGBhHtPdR0qETpNh3eyYiVpAC0gYb2YU", 
-      authDomain: "uds-portal-tools.firebaseapp.com",
+    // 💡 共通化された最新のインライン設定
+    const config = {
+        firebaseConfig: {
+            apiKey: "AIzaSyAvGBhHtPdR0qETpNh3eyYiVpAC0gYb2YU",
+            authDomain: "uds-portal-tools.firebaseapp.com",
+            projectId: "uds-portal-tools",
+            storageBucket: "uds-portal-tools.firebasestorage.app",
+            messagingSenderId: "1058352022068",
+            appId: "1:1058352022068:web:70dcd97f1555d6a9d04061"
+        },
+        RECAPTCHA_SITE_KEY: "6LdP-pYsAAAAAHEsYWrlb9vGGdyP4HQXI8H2_Ug8",
+        APP_ID: "minimal-log"
     };
 
     try {
-      const app = initializeApp(firebaseConfig);
+      const app = initializeApp(config.firebaseConfig);
+      
+      // App Checkの初期化（不正アクセス防止）
+      try { initializeAppCheck(app, { provider: new ReCaptchaV3Provider(config.RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true }); } catch (e) {}
+
       window.db = getFirestore(app);
       window.auth = getAuth(app);
+      
+      // Iframe環境でのログイン状態維持を強化
+      setPersistence(window.auth, browserLocalPersistence).catch(console.error);
+
       window.GoogleAuthProvider = GoogleAuthProvider;
       window.signInWithPopup = signInWithPopup;
       window.signOut = signOut;
       window.onAuthStateChanged = onAuthStateChanged;
       window.collection = collection;
       window.getDocs = getDocs;
+      window.APP_ID = config.APP_ID; // データ取得のパスに使用
       
       window.firebaseInitialized = true;
       window.dispatchEvent(new Event('firebase-ready'));
@@ -100,14 +117,29 @@
       }, []);
 
       const handleLogin = async () => {
+        setAuthError('');
+
+        // 💡 変更点: Firebase APIを呼ぶ「前」に現在のドメインをチェックする
+        // Canvasのプレビュードメイン等からのアクセスの場合、エラーを出さずに即座に本番環境へ誘導します
+        const currentDomain = window.location.hostname;
+        const isAuthorizedHost = 
+          currentDomain === 'localhost' || 
+          currentDomain === '127.0.0.1' ||
+          currentDomain.endsWith('.web.app') || 
+          currentDomain.endsWith('.firebaseapp.com');
+
+        if (!isAuthorizedHost) {
+          setAuthError('プレビュー環境ではログインできません。別タブで本番環境を開きました。');
+          window.open('https://uds-minimal-log.web.app', '_blank');
+          return; // ここで処理を止めるため、エラーは発生しません
+        }
+
         try {
-          setAuthError('');
           const provider = new window.GoogleAuthProvider();
-          // 【変更】複数のドメインを許可するため、hdパラメータによる制限を解除しました
           await window.signInWithPopup(window.auth, provider);
         } catch (error) {
           console.error("Login failed", error);
-          setAuthError('ログインに失敗しました。');
+          setAuthError('ログインに失敗しました。ポップアップがブロックされている可能性があります。');
         }
       };
 
@@ -119,7 +151,6 @@
       useEffect(() => {
         if (!user) return; 
 
-        // 【変更】ドメインチェックで両方のドメインを許可
         const isAuthorizedDomain = user.email && (
           user.email.endsWith('@uds-net.co.jp') || 
           user.email.endsWith('@okinawa-uds.co.jp')
@@ -134,13 +165,14 @@
         const fetchPosts = async () => {
           setLoading(true);
           try {
-            const collectionPath = window.collection(window.db, "posts");
+            const collectionPath = window.collection(window.db, "artifacts", window.APP_ID, "public", "data", "posts");
             const querySnapshot = await window.getDocs(collectionPath);
             const fetchedPosts = [];
             
             querySnapshot.forEach((doc) => {
               const data = doc.data();
-              if (data.isVisible) {
+              // 💡 変更点: isVisible が厳密に true でなくても、明確な false でなければ表示する
+              if (data.isVisible !== false && data.isVisible !== "false" && data.isVisible !== "FALSE") {
                 const dateObj = new Date(data.date);
                 const year = dateObj.getFullYear().toString();
                 const month = `${year}年${dateObj.getMonth() + 1}月`;
