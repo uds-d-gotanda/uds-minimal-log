@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IT MAIL ARCHIVES</title>
   
+  <!-- 💡 追加：Inter と BIZ UDPGothic / Mincho のWebフォントを読み込む -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho&family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -60,9 +65,17 @@
   <style>
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 音声プレイヤーのデフォルトデザインを少し調整 */
+    audio {
+        border-radius: 999px;
+        height: 48px;
+        outline: none;
+    }
   </style>
 </head>
-<body class="bg-[#161618] text-white">
+<!-- 💡 修正：Reactのコメント形式がHTML上に漏れていたのをHTMLコメントに修正 -->
+<body class="bg-[#222831] text-[#EEEEEE]">
   <div id="root"></div>
 
   <script type="text/babel">
@@ -88,7 +101,11 @@
       const [fontFamily, setFontFamily] = useState('sans');
       const [searchQuery, setSearchQuery] = useState('');
       const [selectedYear, setSelectedYear] = useState('All'); 
-      const [visibleMonthsCount, setVisibleMonthsCount] = useState(5);
+      
+      // 💡 追加：Podcastのみ表示するかどうかのトグルステート
+      const [showPodcastOnly, setShowPodcastOnly] = useState(false);
+      
+      const [visiblePostCount, setVisiblePostCount] = useState(12);
       
       const [user, setUser] = useState(null);
       const [posts, setPosts] = useState([]);
@@ -119,8 +136,6 @@
       const handleLogin = async () => {
         setAuthError('');
 
-        // 💡 変更点: Firebase APIを呼ぶ「前」に現在のドメインをチェックする
-        // Canvasのプレビュードメイン等からのアクセスの場合、エラーを出さずに即座に本番環境へ誘導します
         const currentDomain = window.location.hostname;
         const isAuthorizedHost = 
           currentDomain === 'localhost' || 
@@ -131,7 +146,7 @@
         if (!isAuthorizedHost) {
           setAuthError('プレビュー環境ではログインできません。別タブで本番環境を開きました。');
           window.open('https://uds-minimal-log.web.app', '_blank');
-          return; // ここで処理を止めるため、エラーは発生しません
+          return; 
         }
 
         try {
@@ -171,17 +186,30 @@
             
             querySnapshot.forEach((doc) => {
               const data = doc.data();
-              // 💡 変更点: isVisible が厳密に true でなくても、明確な false でなければ表示する
               if (data.isVisible !== false && data.isVisible !== "false" && data.isVisible !== "FALSE") {
                 const dateObj = new Date(data.date);
                 const year = dateObj.getFullYear().toString();
                 const month = `${year}年${dateObj.getMonth() + 1}月`;
-                fetchedPosts.push({ id: doc.id, year, month, ...data });
+                fetchedPosts.push({ id: doc.id, year, month, displayDate: data.date, ...data });
               }
             });
 
             fetchedPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
             setPosts(fetchedPosts);
+
+            // ==========================================
+            // 💡 ダイレクトルーティング機能の追加
+            // ==========================================
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetId = urlParams.get('id');
+            if (targetId) {
+              const targetPost = fetchedPosts.find(p => String(p.id) === targetId);
+              if (targetPost) {
+                setSelectedPost(targetPost);
+                setView('article');
+              }
+            }
+            
             setAuthError('');
           } catch (error) {
             console.error("Firestore読み込みエラー:", error);
@@ -198,29 +226,36 @@
         fetchPosts();
       }, [user]);
 
+      // 💡 変更：テーマカラーを「SOLID TEAL」のトーン＆マナーに完全刷新
       const themeStyles = {
         white: { 
-          bg: 'bg-[#F2F2F7]', surface: 'bg-[#FFFFFF]', text: 'text-[#48484A]', muted: 'text-[#636366]', 
-          accent: 'text-[#007AFF]', divider: 'border-[#D1D1D6]', btn: 'bg-[#FFFFFF] shadow-sm active:bg-[#F2F2F7]',
-          chipActive: 'bg-[#FFFFFF] text-[#48484A] shadow-md ring-1 ring-black/5', chipInactive: 'text-[#636366] hover:text-[#000000]',
-          searchBg: 'bg-[#E3E3E8]', segmentedBg: 'bg-[#E3E3E8]', readingGreen: 'text-[#0D5020]', 
-          fadeEdge: 'from-[#E3E3E8] to-transparent', cardHover: 'hover:shadow-xl hover:-translate-y-0.5' 
+          bg: 'bg-[#F8FAFC]', surface: 'bg-[#FFFFFF]', text: 'text-[#31363F]', muted: 'text-[#64748B]', 
+          accent: 'text-[#76ABAE]', divider: 'border-[#E2E8F0]', btn: 'bg-[#FFFFFF] shadow-sm active:bg-[#F8FAFC]',
+          chipActive: 'bg-[#76ABAE] text-[#FFFFFF] shadow-md', chipInactive: 'text-[#64748B] hover:text-[#31363F]',
+          searchBg: 'bg-[#F8FAFC]', segmentedBg: 'bg-[#F8FAFC]', readingGreen: 'text-[#76ABAE]', 
+          fadeEdge: 'from-[#F8FAFC] to-transparent', cardHover: 'hover:shadow-xl hover:-translate-y-0.5 border border-transparent hover:border-[#76ABAE]/30',
+          iconBg: 'bg-[#76ABAE]/10'
         },
         dark: { 
-          bg: 'bg-[#161618]', surface: 'bg-[#222224]', text: 'text-[#F5F5F7]', muted: 'text-[#A1A1A6]', 
-          accent: 'text-[#0A84FF]', divider: 'border-[#3A3A3C]', btn: 'bg-[#2A2A2C] active:bg-[#3A3A3C]',
-          chipActive: 'bg-[#48484A] text-[#F5F5F7] shadow-lg', chipInactive: 'text-[#A1A1A6] hover:text-[#F5F5F7]',
-          searchBg: 'bg-[#2A2A2C]', segmentedBg: 'bg-[#2A2A2C]', readingGreen: 'text-[#81C995]',
-          fadeEdge: 'from-[#161618] to-transparent', cardHover: 'hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-0.5'
+          bg: 'bg-[#222831]', surface: 'bg-[#31363F]', text: 'text-[#EEEEEE]', muted: 'text-[#9CA3AF]', 
+          accent: 'text-[#76ABAE]', divider: 'border-white/10', btn: 'bg-[#31363F] active:bg-[#222831]',
+          chipActive: 'bg-[#76ABAE] text-[#FFFFFF] shadow-lg', chipInactive: 'text-[#9CA3AF] hover:text-[#EEEEEE]',
+          searchBg: 'bg-[#31363F]', segmentedBg: 'bg-[#31363F]', readingGreen: 'text-[#76ABAE]',
+          fadeEdge: 'from-[#222831] to-transparent', cardHover: 'hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 border border-white/5 hover:border-[#76ABAE]/40',
+          iconBg: 'bg-[#76ABAE]/20'
         }
       };
 
       const s = themeStyles[theme] || themeStyles.dark;
-      const fontStack = fontFamily === 'serif' ? "'Hiragino Mincho ProN', 'Noto Serif JP', serif" : "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', 'Noto Sans JP', sans-serif";
+      
+      const fontStack = fontFamily === 'serif' 
+        ? "'BIZ UDPMincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif" 
+        : "'Inter', 'BIZ UDPGothic', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', sans-serif";
 
-      const h1Style = { fontFamily: fontStack, fontSize: '52px', fontWeight: '700', lineHeight: '1.1', marginTop: '34px', marginBottom: '34px', letterSpacing: '-0.015em' };
-      const h2Style = { fontFamily: fontStack, fontSize: '39px', fontWeight: '700', lineHeight: '1.2', marginTop: '32px', marginBottom: '32px', letterSpacing: '-0.015em' };
-      const bodyTextStyle = { fontFamily: fontStack, fontSize: '26px', fontWeight: '400', lineHeight: '1.45', marginBottom: '2rem' };
+      // 行間と余白の設定
+      const h1Style = { fontFamily: fontStack, fontSize: '52px', fontWeight: '700', lineHeight: '1.25', marginTop: '34px', marginBottom: '34px', letterSpacing: '-0.015em' };
+      const h2Style = { fontFamily: fontStack, fontSize: '39px', fontWeight: '700', lineHeight: '1.3', marginTop: '48px', marginBottom: '32px', letterSpacing: '-0.015em' };
+      const bodyTextStyle = { fontFamily: fontStack, fontSize: '26px', fontWeight: '400', lineHeight: '1.75', marginBottom: '2rem' };
 
       const availableYears = useMemo(() => {
         const years = [...new Set(posts.map(p => p.year))];
@@ -232,22 +267,17 @@
           const query = searchQuery.toLowerCase();
           const matchesSearch = post.title.toLowerCase().includes(query) || (post.summary && post.summary.toLowerCase().includes(query));
           const matchesYear = selectedYear === 'All' || post.year === selectedYear;
-          return matchesSearch && matchesYear;
+          // 💡 追加：Podcastフィルターの条件
+          const matchesPodcast = showPodcastOnly ? (post.hasAudio || post.audioUrl) : true;
+          return matchesSearch && matchesYear && matchesPodcast;
         });
-      }, [searchQuery, selectedYear, posts]);
+      }, [searchQuery, selectedYear, showPodcastOnly, posts]);
 
-      const isSearchingOrFiltering = searchQuery.length > 0 || selectedYear !== 'All';
+      const isSearchingOrFiltering = searchQuery.length > 0 || selectedYear !== 'All' || showPodcastOnly;
       const latestPost = filteredPosts[0];
       const archivePosts = filteredPosts.slice(1);
 
-      const groupedArchives = archivePosts.reduce((acc, post) => {
-        if (!acc[post.month]) acc[post.month] = [];
-        acc[post.month].push(post);
-        return acc;
-      }, {});
-
-      const monthKeys = Object.keys(groupedArchives);
-      const visibleMonthKeys = monthKeys.slice(0, visibleMonthsCount);
+      // ※ groupedArchives（月ごとのグループ分け）は使用しなくなるため削除しても構いませんが、今回は無視されます
 
       const calculateReadingTime = (post) => {
         if (!post) return 1;
@@ -261,12 +291,38 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
+      // 💡 変更：URLの種類を判定し、ドライブ用なら公式プレビューURLに変換する関数
+      const isGoogleDriveUrl = (url) => url && url.includes('drive.google.com');
+
+      const getDriveIframeUrl = (url) => {
+        if (!url) return "";
+        const match = url.match(/\/file\/d\/([^\/]+)/);
+        if (match && match[1]) {
+          return `https://drive.google.com/file/d/${match[1]}/preview`;
+        }
+        return url;
+      };
+
+      // 戻るボタンが押された時の処理
+      const handleBackToList = () => {
+        setView('index'); 
+        setSearchQuery(''); 
+        setSelectedYear('All'); 
+        
+        // URLの ?id=xxx を消去してトップページの綺麗なURLに戻す
+        if (window.history.replaceState) {
+          const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+          window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+        }
+      };
+
       const renderTextWithLinksAndBold = (line) => {
         const linkParts = line.split(/(\[.*?\]\(.*?\))/g);
         return linkParts.map((part, i) => {
           const match = part.match(/\[(.*?)\]\((.*?)\)/);
           if (match) {
-            return <a key={`link-${i}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{match[1]}</a>;
+            {/* 💡 変更：記事内のリンクテキストもTeal色に変更 */}
+            return <a key={`link-${i}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-[#76ABAE] font-bold hover:underline">{match[1]}</a>;
           }
           const boldParts = part.split(/(\*\*.*?\*\*)/g);
           return boldParts.map((bp, j) => {
@@ -277,12 +333,16 @@
         });
       };
 
+      // 💡 変更：Markdownパーサーをさらに強化し、数字の箇条書き（1. 2. 3.）にも対応
       const renderParsedContent = (text) => {
         if (!text) return null;
         const lines = text.split('\n');
         let result = [];
         let currentParagraph = [];
+        let currentList = [];
+        let currentListType = null; // 'ul' (黒丸) または 'ol' (数字)
 
+        // 溜まった段落を吐き出す関数
         const flushParagraph = (index) => {
           if (currentParagraph.length > 0) {
             result.push(<p key={`p-${index}`} style={bodyTextStyle}>{renderTextWithLinksAndBold(currentParagraph.join(' '))}</p>);
@@ -290,18 +350,74 @@
           }
         };
 
+        // 溜まったリストを吐き出す関数
+        const flushList = (index) => {
+          if (currentList.length > 0) {
+            if (currentListType === 'ol') {
+                // 数字のリスト (ol)
+                result.push(
+                  <ol key={`ol-${index}`} className="list-decimal list-outside ml-10 mb-10 space-y-3 opacity-90" style={{ fontFamily: fontStack, fontSize: '26px', lineHeight: '1.75' }}>
+                    {currentList.map((item, i) => (
+                      <li key={`li-${index}-${i}`} className="pl-2 leading-relaxed">{renderTextWithLinksAndBold(item)}</li>
+                    ))}
+                  </ol>
+                );
+            } else {
+                // 黒丸のリスト (ul)
+                result.push(
+                  <ul key={`ul-${index}`} className="list-disc list-outside ml-10 mb-10 space-y-3 opacity-90" style={{ fontFamily: fontStack, fontSize: '26px', lineHeight: '1.75' }}>
+                    {currentList.map((item, i) => (
+                      <li key={`li-${index}-${i}`} className="pl-1 leading-relaxed">{renderTextWithLinksAndBold(item)}</li>
+                    ))}
+                  </ul>
+                );
+            }
+            currentList = [];
+            currentListType = null;
+          }
+        };
+
         lines.forEach((line, index) => {
           const trimmedLine = line.trim();
+          // 正規表現でリストを検知
+          const ulMatch = trimmedLine.match(/^[-*]\s+(.*)/);
+          const olMatch = trimmedLine.match(/^\d+\.\s+(.*)/);
+          
           if (trimmedLine.startsWith('## ')) {
+            flushList(index);
             flushParagraph(index);
             result.push(<h2 key={`h2-${index}`} style={h2Style}>{trimmedLine.replace('## ', '')}</h2>);
+          } else if (trimmedLine.startsWith('### ')) {
+            flushList(index);
+            flushParagraph(index);
+            const h3Style = { fontFamily: fontStack, fontSize: '32px', fontWeight: '700', lineHeight: '1.3', marginTop: '40px', marginBottom: '24px', letterSpacing: '-0.015em' };
+            result.push(<h3 key={`h3-${index}`} style={h3Style}>{trimmedLine.replace('### ', '')}</h3>);
+          } else if (ulMatch) {
+            // 黒丸リスト (- または *)
+            flushParagraph(index);
+            if (currentListType === 'ol') flushList(index); // 種類が変わったら一度吐き出す
+            currentListType = 'ul';
+            currentList.push(ulMatch[1]);
+          } else if (olMatch) {
+            // 数字リスト (1. 2. 3.)
+            flushParagraph(index);
+            if (currentListType === 'ul') flushList(index); // 種類が変わったら一度吐き出す
+            currentListType = 'ol';
+            currentList.push(olMatch[1]);
           } else if (trimmedLine === '') {
+            // 空行でブロックをリセット
+            flushList(index);
             flushParagraph(index);
           } else {
+            // 通常のテキスト
+            flushList(index);
             currentParagraph.push(line);
           }
         });
+        
+        flushList('last');
         flushParagraph('last');
+        
         return result;
       };
 
@@ -325,8 +441,9 @@
         return (
           <div className={`min-h-screen ${s.bg} flex flex-col items-center justify-center p-6`} style={{ fontFamily: fontStack }}>
             <div className={`${s.surface} p-12 rounded-[2rem] max-w-md w-full shadow-2xl text-center space-y-8 border ${s.divider}`}>
-              <div className="w-16 h-16 mx-auto bg-blue-500/10 rounded-2xl flex items-center justify-center">
-                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              {/* 💡 変更：ログイン画面のアイコン背景と色をTealに変更 */}
+              <div className={`w-16 h-16 mx-auto ${s.iconBg} rounded-2xl flex items-center justify-center`}>
+                <svg className={`w-8 h-8 ${s.accent}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
               </div>
               <div>
                 <h1 className={`text-2xl font-bold ${s.text} mb-2`}>IT MAIL ARCHIVES</h1>
@@ -339,9 +456,10 @@
                 </div>
               )}
 
+              {/* 💡 変更：ログインボタンをTealに変更 */}
               <button 
                 onClick={handleLogin}
-                className="w-full bg-[#0A84FF] hover:bg-[#007AFF] text-white font-bold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-3 shadow-lg"
+                className="w-full bg-[#76ABAE] hover:brightness-110 text-white font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                 Googleでログイン
@@ -356,14 +474,13 @@
           <nav className={`sticky top-0 z-50 ${s.bg}/70 backdrop-blur-2xl border-b ${s.divider} px-6 py-4`}>
             <div className="max-w-[1000px] mx-auto flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <button onClick={() => { setView('index'); setSearchQuery(''); setSelectedYear('All'); }} className={`p-2 rounded-full transition-all ${view === 'index' && !isSearchingOrFiltering ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100 hover:bg-current/10'}`} disabled={view === 'index' && !isSearchingOrFiltering}><ArrowLeft size={20} /></button>
+                <button onClick={handleBackToList} className={`p-2 rounded-full transition-all ${view === 'index' && !isSearchingOrFiltering ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100 hover:bg-current/10'}`} disabled={view === 'index' && !isSearchingOrFiltering}><ArrowLeft size={20} /></button>
                 <span className="text-[15px] font-bold tracking-tight">{SITE_TITLE}</span>
               </div>
+              
+              {/* 💡 変更：ライト/ダークの切り替えボタンを完全に削除し、フォント切り替えとログアウトのみ残す */}
               <div className="flex items-center gap-1 bg-current/5 p-1 rounded-xl">
-                <button onClick={() => setFontFamily(fontFamily === 'sans' ? 'serif' : 'sans')} className={`p-2 rounded-lg hover:bg-current/10 transition-colors`}><Type size={18} /></button>
-                <div className={`w-[1px] h-4 mx-1 ${s.divider} border-l`} />
-                <button onClick={() => setTheme('white')} className={`p-2 rounded-lg ${theme === 'white' ? 'bg-white shadow-sm' : ''}`}><Sun size={18}/></button>
-                <button onClick={() => setTheme('dark')} className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-[#3A3A3C] shadow-sm' : ''}`}><Moon size={18}/></button>
+                <button onClick={() => setFontFamily(fontFamily === 'sans' ? 'serif' : 'sans')} className={`p-2 rounded-lg hover:bg-current/10 transition-colors`} title="フォントの切り替え"><Type size={18} /></button>
                 <div className={`w-[1px] h-4 mx-1 ${s.divider} border-l`} />
                 <button onClick={handleLogout} title="ログアウト" className={`p-2 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-colors`}><LogOut size={18}/></button>
               </div>
@@ -381,7 +498,7 @@
                       placeholder="キーワードでアーカイブを検索"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className={`w-full pl-16 pr-14 py-5 rounded-[1.5rem] ${s.searchBg} border-none outline-none transition-all text-xl font-medium shadow-sm focus:ring-4 focus:ring-blue-500/10 placeholder:text-current/25`}
+                      className={`w-full pl-16 pr-14 py-5 rounded-[1.5rem] ${s.searchBg} border-none outline-none transition-all text-xl font-medium shadow-sm focus:ring-4 focus:ring-[#76ABAE]/30 placeholder:text-current/25`}
                     />
                     {searchQuery.length > 0 && (
                       <button onClick={() => setSearchQuery('')} className="absolute right-6 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-100 transition-opacity">
@@ -390,36 +507,63 @@
                     )}
                   </div>
                   
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 px-1 text-[13px] font-bold opacity-40 uppercase tracking-widest">
-                      <Filter size={14} />
-                      <span>Year Archive</span>
-                    </div>
-                    <div className="relative w-full overflow-hidden">
-                      <div className={`flex p-1.5 rounded-2xl ${s.segmentedBg} overflow-x-auto hide-scrollbar scroll-smooth`}>
-                        <button onClick={() => setSelectedYear('All')} className={`px-8 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 ${selectedYear === 'All' ? s.chipActive : s.chipInactive}`}>すべて</button>
-                        {availableYears.map(year => (
-                          <button key={year} onClick={() => setSelectedYear(year)} className={`px-8 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 ${selectedYear === year ? s.chipActive : s.chipInactive}`}>{year}年</button>
-                        ))}
+                  {/* 💡 変更：フィルター類を横並びに配置し、Podcastトグルを追加 */}
+                  <div className="flex flex-col md:flex-row gap-6 md:gap-10">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1 text-[13px] font-bold opacity-40 uppercase tracking-widest">
+                        <Filter size={14} />
+                        <span>Year Archive</span>
                       </div>
-                      <div className={`absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l ${s.fadeEdge} pointer-events-none z-20`}></div>
+                      <div className="relative w-full overflow-hidden">
+                        <div className={`flex p-1.5 rounded-2xl ${s.segmentedBg} overflow-x-auto hide-scrollbar scroll-smooth`}>
+                          <button onClick={() => setSelectedYear('All')} className={`px-8 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 ${selectedYear === 'All' ? s.chipActive : s.chipInactive}`}>すべて</button>
+                          {availableYears.map(year => (
+                            <button key={year} onClick={() => setSelectedYear(year)} className={`px-8 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 ${selectedYear === year ? s.chipActive : s.chipInactive}`}>{year}年</button>
+                          ))}
+                        </div>
+                        <div className={`absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l ${s.fadeEdge} pointer-events-none z-20`}></div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1 text-[13px] font-bold opacity-40 uppercase tracking-widest">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+                        <span>Format</span>
+                      </div>
+                      <div className={`flex p-1.5 rounded-2xl ${s.segmentedBg} overflow-x-auto hide-scrollbar w-fit`}>
+                        <button onClick={() => setShowPodcastOnly(false)} className={`px-6 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 ${!showPodcastOnly ? s.chipActive : s.chipInactive}`}>すべて</button>
+                        <button onClick={() => setShowPodcastOnly(true)} className={`px-6 py-2.5 rounded-xl text-[14px] font-bold transition-all whitespace-nowrap z-10 flex items-center gap-2 ${showPodcastOnly ? 'bg-[#F43F5E] text-white shadow-md' : s.chipInactive}`}>
+                          Podcast
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {isSearchingOrFiltering ? (
                   <div className="animate-in fade-in duration-500">
-                    <div className={`text-3xl font-bold tracking-tight mb-12`}>"{searchQuery || selectedYear}" の検索結果</div>
-                    <div className="space-y-16">
+                    <div className={`text-3xl font-bold tracking-tight mb-12`}>"{searchQuery || selectedYear || (showPodcastOnly && 'Podcast')}" の検索結果</div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {filteredPosts.map(post => (
-                        <article key={post.id} className="group cursor-pointer max-w-3xl" onClick={() => handleOpenArticle(post)}>
-                          <MetaRow post={post} className="mb-2" />
-                          <h4 className={`text-[2.25rem] font-bold leading-tight tracking-tight mb-4 group-hover:${s.accent} transition-colors`}>{post.title}</h4>
-                          <p className="text-[1.25rem] opacity-60 leading-relaxed line-clamp-2">{post.summary}</p>
+                        <article key={post.id} className={`${s.surface} p-8 rounded-[2rem] flex flex-col cursor-pointer transition-all duration-300 ${s.cardHover}`} onClick={() => handleOpenArticle(post)}>
+                            <div className="flex items-center justify-between mb-5">
+                                {/* 💡 変更：Podcastのバッジ色をローズピンク系にして視認性を向上 */}
+                                <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-md ${post.hasAudio || post.audioUrl ? (theme === 'dark' ? 'bg-[#F43F5E]/20 text-[#FB7185]' : 'bg-[#E11D48]/10 text-[#E11D48]') : `${s.iconBg} ${s.accent}`}`}>
+                                    {post.hasAudio || post.audioUrl ? "Podcast" : "Article"}
+                                </span>
+                                {/* 💡 変更：カード側にも読了時間を追加 */}
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-[12px] font-bold ${s.readingGreen} flex items-center gap-1`}><Clock size={12} /> {calculateReadingTime(post)} 分</span>
+                                    <span className={`text-[13px] font-semibold ${s.muted}`}>{post.displayDate}</span>
+                                </div>
+                            </div>
+                            <h4 className={`text-[1.35rem] font-bold leading-[1.4] tracking-tight mb-4 transition-colors flex-1 group-hover:${s.accent}`}>{post.title}</h4>
+                            <p className={`text-[14px] ${s.muted} leading-relaxed line-clamp-3 font-medium`}>{post.summary}</p>
                         </article>
                       ))}
                       {filteredPosts.length === 0 && (
-                        <div className="py-24 text-center opacity-40">
+                        <div className="py-24 text-center opacity-40 col-span-1 md:col-span-2">
                           <Search size={64} className="mx-auto mb-6" />
                           <p className="text-2xl font-medium tracking-tight">該当する記事は見つかりませんでした</p>
                         </div>
@@ -427,7 +571,7 @@
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-32 animate-in fade-in duration-700">
+                  <div className="space-y-24 animate-in fade-in duration-700">
                     {posts.length === 0 && (
                       <div className="text-center opacity-40 py-20 font-bold text-xl">
                         データベースに記事がありません。GASから取り込みを実行してください。
@@ -437,62 +581,81 @@
                     {latestPost && (
                       <section className="space-y-6">
                         <div className={`text-[13px] font-bold uppercase tracking-[0.1em] ${s.muted} px-4`}>Latest Weekly Insight</div>
-                        <div className={`${s.surface} rounded-[2.75rem] p-10 md:p-16 cursor-pointer shadow-2xl shadow-black/5 transition-all duration-300 ${s.cardHover}`} onClick={() => handleOpenArticle(latestPost)}>
-                          <div className="flex flex-col gap-8">
-                            <MetaRow post={latestPost} />
-                            <h2 className={`text-[2.75rem] md:text-[3.5rem] font-bold leading-[1.05] tracking-tighter ${s.text} max-w-4xl`}>{latestPost.title}</h2>
-                            <p className={`text-[1.4rem] leading-[1.6] ${s.muted} line-clamp-3 font-medium`}>{latestPost.summary}</p>
+                        
+                        <div className={`${s.surface} rounded-[2.75rem] p-10 md:p-14 shadow-2xl shadow-black/5 transition-all duration-300 border border-transparent hover:border-[#76ABAE]/20`}>
+                          
+                          <div className="flex flex-col gap-8 cursor-pointer group" onClick={() => handleOpenArticle(latestPost)}>
+                            <div className="flex flex-wrap items-center gap-4">
+                                {/* 💡 変更：Podcastのバッジ色をローズピンク系に変更 */}
+                                <span className={`text-[12px] font-black uppercase tracking-widest px-3.5 py-1.5 rounded-md ${latestPost.hasAudio || latestPost.audioUrl ? (theme === 'dark' ? 'bg-[#F43F5E]/20 text-[#FB7185]' : 'bg-[#E11D48]/10 text-[#E11D48]') : `${s.iconBg} ${s.accent}`}`}>
+                                    {latestPost.hasAudio || latestPost.audioUrl ? "Podcast" : "Article"}
+                                </span>
+                                <MetaRow post={latestPost} />
+                            </div>
+                            <h2 className={`text-[2.5rem] md:text-[3.25rem] font-bold leading-[1.1] tracking-tighter ${s.text} max-w-4xl group-hover:${s.accent} transition-colors`}>{latestPost.title}</h2>
+                            <p className={`text-[1.25rem] md:text-[1.4rem] leading-[1.6] ${s.muted} line-clamp-3 font-medium`}>{latestPost.summary}</p>
                           </div>
+
+                          {/* 最新記事が音声ありの場合、ここで直接再生できる */}
+                          {(latestPost.audioUrl || latestPost.hasAudio) && (
+                              <div className="mt-10 pt-8 border-t border-white/10">
+                                  <div className={`flex items-center gap-3 ${s.accent} font-bold text-[16px] mb-4`}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+                                      <span>Play Latest Podcast</span>
+                                  </div>
+                                  {latestPost.audioUrl ? (
+                                      isGoogleDriveUrl(latestPost.audioUrl) ? (
+                                          <div className="w-full h-[140px] rounded-xl overflow-hidden relative border border-white/10 bg-black/20">
+                                             <iframe src={getDriveIframeUrl(latestPost.audioUrl)} className="w-full h-full border-none" allow="autoplay"></iframe>
+                                          </div>
+                                      ) : (
+                                          <audio controls src={latestPost.audioUrl} className="w-full outline-none" controlsList="nodownload" />
+                                      )
+                                  ) : (
+                                      <div className={`p-4 rounded-xl bg-black/5 dark:bg-white/5 text-[14px] font-bold ${s.muted}`}>
+                                          ※ 音声ファイルがアップロードされていません
+                                      </div>
+                                  )}
+                              </div>
+                          )}
                         </div>
                       </section>
                     )}
 
-                    <div className="space-y-32">
-                      {visibleMonthKeys.map(month => {
-                        const monthPosts = groupedArchives[month];
-                        const featured = monthPosts[0];
-                        const remainings = monthPosts.slice(1);
-                        const count = monthPosts.length;
-
-                        return (
-                          <section key={month} className="space-y-8">
-                            <div className={`flex items-baseline gap-4 px-4`}>
-                              <h3 className="text-[2.25rem] font-bold tracking-tight">{month}</h3>
-                            </div>
-                            
-                            <div className={`${s.surface} rounded-[2.75rem] p-10 md:p-16 shadow-2xl shadow-black/5 transition-all duration-300 ${s.cardHover}`}>
-                              <div className="flex flex-col lg:flex-row gap-16">
-                                <div className={count === 1 ? "w-full" : "lg:w-[40%] shrink-0"}>
-                                  <div className={`group cursor-pointer h-full flex flex-col`} onClick={() => handleOpenArticle(featured)}>
-                                    <MetaRow post={featured} className="mb-4" />
-                                    <h4 className={`font-bold leading-tight mb-6 ${count === 1 ? 'text-[2.5rem]' : 'text-[2rem]'} tracking-tight group-hover:opacity-60 transition-opacity`}>{featured.title}</h4>
-                                    <p className={`leading-relaxed line-clamp-5 ${s.muted} text-[1.15rem] font-medium`}>{featured.summary}</p>
-                                  </div>
-                                </div>
-                                
-                                {count > 1 && (
-                                  <div className="lg:w-[60%] flex flex-col gap-0">
-                                    <div className={`divide-y ${s.divider}`}>
-                                      {remainings.map((post, index) => (
-                                        <div key={post.id} className={`py-8 ${index === 0 ? "pt-0" : ""} group cursor-pointer`} onClick={() => handleOpenArticle(post)}>
-                                          <MetaRow post={post} className="mb-2" />
-                                          <h5 className="text-[1.5rem] font-bold leading-tight tracking-tight group-hover:opacity-50 transition-opacity">{post.title}</h5>
-                                        </div>
-                                      ))}
+                    {/* 💡 変更：月別の変則レイアウトを廃止し、美しいカード型グリッドに統一 */}
+                    {archivePosts.length > 0 && (
+                      <section className="space-y-6 pt-4">
+                        <div className={`text-[13px] font-bold uppercase tracking-[0.1em] ${s.muted} px-4`}>Previous Archives</div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {archivePosts.slice(0, visiblePostCount).map(post => (
+                            <article key={post.id} className={`${s.surface} p-8 rounded-[2rem] flex flex-col cursor-pointer transition-all duration-300 ${s.cardHover} group`} onClick={() => handleOpenArticle(post)}>
+                                <div className="flex items-center justify-between mb-5">
+                                    {/* 💡 変更：Podcastのバッジ色をローズピンク系にして視認性を向上 */}
+                                    <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-md ${post.hasAudio || post.audioUrl ? (theme === 'dark' ? 'bg-[#F43F5E]/20 text-[#FB7185]' : 'bg-[#E11D48]/10 text-[#E11D48]') : `${s.iconBg} ${s.accent}`}`}>
+                                        {post.hasAudio || post.audioUrl ? "Podcast" : "Article"}
+                                    </span>
+                                    {/* 💡 変更：カード側にも読了時間を追加 */}
+                                    <div className="flex items-center gap-3">
+                                        <span className={`text-[12px] font-bold ${s.readingGreen} flex items-center gap-1`}><Clock size={12} /> {calculateReadingTime(post)} 分</span>
+                                        <span className={`text-[13px] font-semibold ${s.muted}`}>{post.displayDate}</span>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </section>
-                        );
-                      })}
-                    </div>
+                                </div>
+                                <h4 className={`text-[1.35rem] font-bold leading-[1.4] tracking-tight mb-4 transition-colors flex-1 group-hover:${s.accent}`}>{post.title}</h4>
+                                <p className={`text-[14px] ${s.muted} leading-relaxed line-clamp-3 font-medium`}>{post.summary}</p>
+                            </article>
+                          ))}
+                        </div>
 
-                    {visibleMonthsCount < monthKeys.length && (
-                      <div className="text-center py-20 border-t-2 border-current/5">
-                        <button onClick={() => setVisibleMonthsCount(prev => prev + 2)} className={`px-12 py-4 rounded-2xl ${s.surface} text-[15px] font-bold tracking-tight hover:scale-105 active:scale-95 transition-all shadow-sm`}>以前の記録を読み込む</button>
-                      </div>
+                        {/* 読み込む件数を 12件 ずつ増やすように変更 */}
+                        {visiblePostCount < archivePosts.length && (
+                          <div className="text-center pt-12">
+                            <button onClick={() => setVisiblePostCount(prev => prev + 12)} className={`px-10 py-4 rounded-full ${s.surface} text-[15px] font-bold tracking-tight hover:brightness-110 active:scale-95 transition-all shadow-sm border ${s.divider}`}>
+                                もっと過去の記録を読み込む
+                            </button>
+                          </div>
+                        )}
+                      </section>
                     )}
                   </div>
                 )}
@@ -512,18 +675,43 @@
                 </header>
 
                 <div className="space-y-12">
-                  <p style={bodyTextStyle} className="opacity-90 font-medium leading-relaxed">{selectedPost.summary}</p>
+                  <p style={bodyTextStyle} className="opacity-90 font-medium">{selectedPost.summary}</p>
 
-                  <div className={`my-16 p-10 rounded-[2.5rem] ${s.surface} flex items-center gap-8 shadow-sm`}>
-                    <div className="p-3 bg-blue-500/10 rounded-2xl shrink-0">
-                      <Info className="text-blue-500" size={32} />
+                  {/* 💡 変更：Podcast枠のデザイン（角丸・パディング・影・背景）をInfo枠と完全に統一 */}
+                  {(selectedPost.audioUrl || selectedPost.hasAudio) && (
+                    <div className={`p-8 rounded-[2rem] ${s.surface} shadow-sm border ${s.divider} flex flex-col gap-5 mt-12 mb-6`}>
+                      <div className={`flex items-center gap-3 ${s.accent} font-bold text-lg`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+                        <span>Podcast Archive</span>
+                      </div>
+                      
+                      {selectedPost.audioUrl ? (
+                        isGoogleDriveUrl(selectedPost.audioUrl) ? (
+                          <div className="w-full mt-2 h-[140px] rounded-xl overflow-hidden relative border border-white/10 bg-black/20">
+                             <iframe src={getDriveIframeUrl(selectedPost.audioUrl)} className="w-full h-full border-none" allow="autoplay"></iframe>
+                          </div>
+                        ) : (
+                          <audio controls src={selectedPost.audioUrl} className="w-full mt-1 outline-none" controlsList="nodownload" />
+                        )
+                      ) : (
+                        <div className={`p-4 rounded-xl bg-black/5 dark:bg-white/5 text-[14px] font-bold ${s.muted}`}>
+                          ※ この記事の音声ファイル（audioUrl）はまだアップロードされていません
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 💡 変更：Info枠のデザインをPodcast枠と統一し、文言を変更 */}
+                  <div className={`p-8 rounded-[2rem] ${s.surface} flex items-center gap-6 shadow-sm border ${s.divider} mb-16`}>
+                    <div className={`p-4 ${s.iconBg} rounded-[1.25rem] shrink-0`}>
+                      <Info className={s.accent} size={28} />
                     </div>
                     <p className="text-[1.25rem] leading-relaxed font-semibold">
-                      この記事は社内配信された <strong>{selectedPost.displayDate}</strong> の記録をベースにしています。
+                      この記事は、<strong>{selectedPost.displayDate}</strong> に配信された社内メールの内容を、一部構成し直して掲載しています。
                     </p>
                   </div>
 
-                  <div className={`h-[1px] w-full ${s.divider} border-t my-16`}></div>
+                  <div className={`h-[1px] w-full ${s.divider} border-t mb-16`}></div>
                   
                   <article className="article-content">
                     {renderParsedContent(selectedPost.content)}
