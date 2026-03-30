@@ -74,7 +74,6 @@
     }
   </style>
 </head>
-<!-- 💡 修正：Reactのコメント形式がHTML上に漏れていたのをHTMLコメントに修正 -->
 <body class="bg-[#222831] text-[#EEEEEE]">
   <div id="root"></div>
 
@@ -102,9 +101,7 @@
       const [searchQuery, setSearchQuery] = useState('');
       const [selectedYear, setSelectedYear] = useState('All'); 
       
-      // 💡 追加：Podcastのみ表示するかどうかのトグルステート
       const [showPodcastOnly, setShowPodcastOnly] = useState(false);
-      
       const [visiblePostCount, setVisiblePostCount] = useState(12);
       
       const [user, setUser] = useState(null);
@@ -197,9 +194,6 @@
             fetchedPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
             setPosts(fetchedPosts);
 
-            // ==========================================
-            // 💡 ダイレクトルーティング機能の追加
-            // ==========================================
             const urlParams = new URLSearchParams(window.location.search);
             const targetId = urlParams.get('id');
             if (targetId) {
@@ -226,7 +220,6 @@
         fetchPosts();
       }, [user]);
 
-      // 💡 変更：テーマカラーを「SOLID TEAL」のトーン＆マナーに完全刷新
       const themeStyles = {
         white: { 
           bg: 'bg-[#F8FAFC]', surface: 'bg-[#FFFFFF]', text: 'text-[#31363F]', muted: 'text-[#64748B]', 
@@ -252,7 +245,6 @@
         ? "'BIZ UDPMincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif" 
         : "'Inter', 'BIZ UDPGothic', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', sans-serif";
 
-      // 行間と余白の設定
       const h1Style = { fontFamily: fontStack, fontSize: '52px', fontWeight: '700', lineHeight: '1.25', marginTop: '34px', marginBottom: '34px', letterSpacing: '-0.015em' };
       const h2Style = { fontFamily: fontStack, fontSize: '39px', fontWeight: '700', lineHeight: '1.3', marginTop: '48px', marginBottom: '32px', letterSpacing: '-0.015em' };
       const bodyTextStyle = { fontFamily: fontStack, fontSize: '26px', fontWeight: '400', lineHeight: '1.75', marginBottom: '2rem' };
@@ -267,22 +259,51 @@
           const query = searchQuery.toLowerCase();
           const matchesSearch = post.title.toLowerCase().includes(query) || (post.summary && post.summary.toLowerCase().includes(query));
           const matchesYear = selectedYear === 'All' || post.year === selectedYear;
-          // 💡 追加：Podcastフィルターの条件
           const matchesPodcast = showPodcastOnly ? (post.hasAudio || post.audioUrl) : true;
           return matchesSearch && matchesYear && matchesPodcast;
         });
       }, [searchQuery, selectedYear, showPodcastOnly, posts]);
 
       const isSearchingOrFiltering = searchQuery.length > 0 || selectedYear !== 'All' || showPodcastOnly;
+      
+      // 💡 追加：検索・絞り込みの条件を人間が読みやすい形式に結合する処理
+      const searchTitleParts = [];
+      if (searchQuery) searchTitleParts.push(`"${searchQuery}"`);
+      if (selectedYear !== 'All') searchTitleParts.push(`${selectedYear}年`);
+      if (showPodcastOnly) searchTitleParts.push('Podcast');
+      const searchTitle = searchTitleParts.join(' ＋ ');
+
       const latestPost = filteredPosts[0];
       const archivePosts = filteredPosts.slice(1);
-
-      // ※ groupedArchives（月ごとのグループ分け）は使用しなくなるため削除しても構いませんが、今回は無視されます
 
       const calculateReadingTime = (post) => {
         if (!post) return 1;
         const charCount = (post.content?.length || 0) + (post.summary?.length || 0);
         return Math.ceil(charCount / 500) || 1;
+      };
+
+      // 💡 追加：音声の再生時間（例：17:45）を「〇 分」に丸めて表記揺れをなくす関数
+      const formatDurationToMinutes = (durationStr) => {
+        if (!durationStr) return "音声あり";
+        if (durationStr.includes(':')) {
+          const parts = durationStr.split(':');
+          if (parts.length === 2) {
+            // MM:SS の場合
+            const min = parseInt(parts[0], 10) || 0;
+            const sec = parseInt(parts[1], 10) || 0;
+            const rounded = sec >= 30 ? min + 1 : min;
+            return rounded === 0 ? "1 分" : `${rounded} 分`;
+          } else if (parts.length === 3) {
+            // HH:MM:SS の場合
+            const hr = parseInt(parts[0], 10) || 0;
+            const min = parseInt(parts[1], 10) || 0;
+            return `${hr * 60 + min} 分`;
+          }
+        }
+        // 数字のみ入力されている場合 "17" -> "17 分"
+        const num = parseInt(durationStr, 10);
+        if (!isNaN(num)) return `${num} 分`;
+        return durationStr;
       };
 
       const handleOpenArticle = (post) => {
@@ -291,7 +312,6 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
-      // 💡 変更：URLの種類を判定し、ドライブ用なら公式プレビューURLに変換する関数
       const isGoogleDriveUrl = (url) => url && url.includes('drive.google.com');
 
       const getDriveIframeUrl = (url) => {
@@ -303,13 +323,11 @@
         return url;
       };
 
-      // 戻るボタンが押された時の処理
       const handleBackToList = () => {
         setView('index'); 
         setSearchQuery(''); 
         setSelectedYear('All'); 
         
-        // URLの ?id=xxx を消去してトップページの綺麗なURLに戻す
         if (window.history.replaceState) {
           const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
           window.history.replaceState({path: cleanUrl}, '', cleanUrl);
@@ -321,7 +339,6 @@
         return linkParts.map((part, i) => {
           const match = part.match(/\[(.*?)\]\((.*?)\)/);
           if (match) {
-            {/* 💡 変更：記事内のリンクテキストもTeal色に変更 */}
             return <a key={`link-${i}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-[#76ABAE] font-bold hover:underline">{match[1]}</a>;
           }
           const boldParts = part.split(/(\*\*.*?\*\*)/g);
@@ -333,16 +350,14 @@
         });
       };
 
-      // 💡 変更：Markdownパーサーをさらに強化し、数字の箇条書き（1. 2. 3.）にも対応
       const renderParsedContent = (text) => {
         if (!text) return null;
         const lines = text.split('\n');
         let result = [];
         let currentParagraph = [];
         let currentList = [];
-        let currentListType = null; // 'ul' (黒丸) または 'ol' (数字)
+        let currentListType = null; 
 
-        // 溜まった段落を吐き出す関数
         const flushParagraph = (index) => {
           if (currentParagraph.length > 0) {
             result.push(<p key={`p-${index}`} style={bodyTextStyle}>{renderTextWithLinksAndBold(currentParagraph.join(' '))}</p>);
@@ -350,11 +365,9 @@
           }
         };
 
-        // 溜まったリストを吐き出す関数
         const flushList = (index) => {
           if (currentList.length > 0) {
             if (currentListType === 'ol') {
-                // 数字のリスト (ol)
                 result.push(
                   <ol key={`ol-${index}`} className="list-decimal list-outside ml-10 mb-10 space-y-3 opacity-90" style={{ fontFamily: fontStack, fontSize: '26px', lineHeight: '1.75' }}>
                     {currentList.map((item, i) => (
@@ -363,7 +376,6 @@
                   </ol>
                 );
             } else {
-                // 黒丸のリスト (ul)
                 result.push(
                   <ul key={`ul-${index}`} className="list-disc list-outside ml-10 mb-10 space-y-3 opacity-90" style={{ fontFamily: fontStack, fontSize: '26px', lineHeight: '1.75' }}>
                     {currentList.map((item, i) => (
@@ -379,7 +391,6 @@
 
         lines.forEach((line, index) => {
           const trimmedLine = line.trim();
-          // 正規表現でリストを検知
           const ulMatch = trimmedLine.match(/^[-*]\s+(.*)/);
           const olMatch = trimmedLine.match(/^\d+\.\s+(.*)/);
           
@@ -393,23 +404,19 @@
             const h3Style = { fontFamily: fontStack, fontSize: '32px', fontWeight: '700', lineHeight: '1.3', marginTop: '40px', marginBottom: '24px', letterSpacing: '-0.015em' };
             result.push(<h3 key={`h3-${index}`} style={h3Style}>{trimmedLine.replace('### ', '')}</h3>);
           } else if (ulMatch) {
-            // 黒丸リスト (- または *)
             flushParagraph(index);
-            if (currentListType === 'ol') flushList(index); // 種類が変わったら一度吐き出す
+            if (currentListType === 'ol') flushList(index);
             currentListType = 'ul';
             currentList.push(ulMatch[1]);
           } else if (olMatch) {
-            // 数字リスト (1. 2. 3.)
             flushParagraph(index);
-            if (currentListType === 'ul') flushList(index); // 種類が変わったら一度吐き出す
+            if (currentListType === 'ul') flushList(index); 
             currentListType = 'ol';
             currentList.push(olMatch[1]);
           } else if (trimmedLine === '') {
-            // 空行でブロックをリセット
             flushList(index);
             flushParagraph(index);
           } else {
-            // 通常のテキスト
             flushList(index);
             currentParagraph.push(line);
           }
@@ -425,7 +432,12 @@
         <div className={`flex items-center gap-2 text-[16px] font-semibold ${className}`}>
           <span className={s.muted}>{post.displayDate}</span>
           <span className={`${s.muted} opacity-40 font-normal`}>•</span>
-          <span className={s.readingGreen}>読了目安 {calculateReadingTime(post)} 分</span>
+          <span className={s.readingGreen}>
+            {/* 💡 変更：フォーマット関数を通して「〇 分」の表記に統一 */}
+            {(post.hasAudio || post.audioUrl) && post.duration 
+              ? `リスニング ${formatDurationToMinutes(post.duration)}` 
+              : `読了目安 ${calculateReadingTime(post)} 分`}
+          </span>
         </div>
       );
 
@@ -441,7 +453,6 @@
         return (
           <div className={`min-h-screen ${s.bg} flex flex-col items-center justify-center p-6`} style={{ fontFamily: fontStack }}>
             <div className={`${s.surface} p-12 rounded-[2rem] max-w-md w-full shadow-2xl text-center space-y-8 border ${s.divider}`}>
-              {/* 💡 変更：ログイン画面のアイコン背景と色をTealに変更 */}
               <div className={`w-16 h-16 mx-auto ${s.iconBg} rounded-2xl flex items-center justify-center`}>
                 <svg className={`w-8 h-8 ${s.accent}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
               </div>
@@ -456,7 +467,6 @@
                 </div>
               )}
 
-              {/* 💡 変更：ログインボタンをTealに変更 */}
               <button 
                 onClick={handleLogin}
                 className="w-full bg-[#76ABAE] hover:brightness-110 text-white font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg"
@@ -478,7 +488,6 @@
                 <span className="text-[15px] font-bold tracking-tight">{SITE_TITLE}</span>
               </div>
               
-              {/* 💡 変更：ライト/ダークの切り替えボタンを完全に削除し、フォント切り替えとログアウトのみ残す */}
               <div className="flex items-center gap-1 bg-current/5 p-1 rounded-xl">
                 <button onClick={() => setFontFamily(fontFamily === 'sans' ? 'serif' : 'sans')} className={`p-2 rounded-lg hover:bg-current/10 transition-colors`} title="フォントの切り替え"><Type size={18} /></button>
                 <div className={`w-[1px] h-4 mx-1 ${s.divider} border-l`} />
@@ -507,7 +516,6 @@
                     )}
                   </div>
                   
-                  {/* 💡 変更：フィルター類を横並びに配置し、Podcastトグルを追加 */}
                   <div className="flex flex-col md:flex-row gap-6 md:gap-10">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 px-1 text-[13px] font-bold opacity-40 uppercase tracking-widest">
@@ -542,19 +550,22 @@
 
                 {isSearchingOrFiltering ? (
                   <div className="animate-in fade-in duration-500">
-                    <div className={`text-3xl font-bold tracking-tight mb-12`}>"{searchQuery || selectedYear || (showPodcastOnly && 'Podcast')}" の検索結果</div>
+                    {/* 💡 変更：先ほど作成したスマートな見出し（searchTitle）を表示 */}
+                    <div className={`text-3xl font-bold tracking-tight mb-12`}>{searchTitle} の検索結果</div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {filteredPosts.map(post => (
                         <article key={post.id} className={`${s.surface} p-8 rounded-[2rem] flex flex-col cursor-pointer transition-all duration-300 ${s.cardHover}`} onClick={() => handleOpenArticle(post)}>
                             <div className="flex items-center justify-between mb-5">
-                                {/* 💡 変更：Podcastのバッジ色をローズピンク系にして視認性を向上 */}
                                 <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-md ${post.hasAudio || post.audioUrl ? (theme === 'dark' ? 'bg-[#F43F5E]/20 text-[#FB7185]' : 'bg-[#E11D48]/10 text-[#E11D48]') : `${s.iconBg} ${s.accent}`}`}>
                                     {post.hasAudio || post.audioUrl ? "Podcast" : "Article"}
                                 </span>
-                                {/* 💡 変更：カード側にも読了時間を追加 */}
                                 <div className="flex items-center gap-3">
-                                    <span className={`text-[12px] font-bold ${s.readingGreen} flex items-center gap-1`}><Clock size={12} /> {calculateReadingTime(post)} 分</span>
+                                    <span className={`text-[12px] font-bold ${s.readingGreen} flex items-center gap-1`}>
+                                        <Clock size={12} /> 
+                                        {/* 💡 変更：カードの表記も「〇 分」に統一 */}
+                                        {(post.hasAudio || post.audioUrl) ? formatDurationToMinutes(post.duration) : `${calculateReadingTime(post)} 分`}
+                                    </span>
                                     <span className={`text-[13px] font-semibold ${s.muted}`}>{post.displayDate}</span>
                                 </div>
                             </div>
@@ -586,7 +597,6 @@
                           
                           <div className="flex flex-col gap-8 cursor-pointer group" onClick={() => handleOpenArticle(latestPost)}>
                             <div className="flex flex-wrap items-center gap-4">
-                                {/* 💡 変更：Podcastのバッジ色をローズピンク系に変更 */}
                                 <span className={`text-[12px] font-black uppercase tracking-widest px-3.5 py-1.5 rounded-md ${latestPost.hasAudio || latestPost.audioUrl ? (theme === 'dark' ? 'bg-[#F43F5E]/20 text-[#FB7185]' : 'bg-[#E11D48]/10 text-[#E11D48]') : `${s.iconBg} ${s.accent}`}`}>
                                     {latestPost.hasAudio || latestPost.audioUrl ? "Podcast" : "Article"}
                                 </span>
@@ -596,7 +606,6 @@
                             <p className={`text-[1.25rem] md:text-[1.4rem] leading-[1.6] ${s.muted} line-clamp-3 font-medium`}>{latestPost.summary}</p>
                           </div>
 
-                          {/* 最新記事が音声ありの場合、ここで直接再生できる */}
                           {(latestPost.audioUrl || latestPost.hasAudio) && (
                               <div className="mt-10 pt-8 border-t border-white/10">
                                   <div className={`flex items-center gap-3 ${s.accent} font-bold text-[16px] mb-4`}>
@@ -621,8 +630,7 @@
                         </div>
                       </section>
                     )}
-
-                    {/* 💡 変更：月別の変則レイアウトを廃止し、美しいカード型グリッドに統一 */}
+                    
                     {archivePosts.length > 0 && (
                       <section className="space-y-6 pt-4">
                         <div className={`text-[13px] font-bold uppercase tracking-[0.1em] ${s.muted} px-4`}>Previous Archives</div>
@@ -631,13 +639,15 @@
                           {archivePosts.slice(0, visiblePostCount).map(post => (
                             <article key={post.id} className={`${s.surface} p-8 rounded-[2rem] flex flex-col cursor-pointer transition-all duration-300 ${s.cardHover} group`} onClick={() => handleOpenArticle(post)}>
                                 <div className="flex items-center justify-between mb-5">
-                                    {/* 💡 変更：Podcastのバッジ色をローズピンク系にして視認性を向上 */}
                                     <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-md ${post.hasAudio || post.audioUrl ? (theme === 'dark' ? 'bg-[#F43F5E]/20 text-[#FB7185]' : 'bg-[#E11D48]/10 text-[#E11D48]') : `${s.iconBg} ${s.accent}`}`}>
                                         {post.hasAudio || post.audioUrl ? "Podcast" : "Article"}
                                     </span>
-                                    {/* 💡 変更：カード側にも読了時間を追加 */}
                                     <div className="flex items-center gap-3">
-                                        <span className={`text-[12px] font-bold ${s.readingGreen} flex items-center gap-1`}><Clock size={12} /> {calculateReadingTime(post)} 分</span>
+                                        <span className={`text-[12px] font-bold ${s.readingGreen} flex items-center gap-1`}>
+                                            <Clock size={12} /> 
+                                            {/* 💡 変更：過去アーカイブのカード表記も「〇 分」に統一 */}
+                                            {(post.hasAudio || post.audioUrl) ? formatDurationToMinutes(post.duration) : `${calculateReadingTime(post)} 分`}
+                                        </span>
                                         <span className={`text-[13px] font-semibold ${s.muted}`}>{post.displayDate}</span>
                                     </div>
                                 </div>
@@ -647,7 +657,6 @@
                           ))}
                         </div>
 
-                        {/* 読み込む件数を 12件 ずつ増やすように変更 */}
                         {visiblePostCount < archivePosts.length && (
                           <div className="text-center pt-12">
                             <button onClick={() => setVisiblePostCount(prev => prev + 12)} className={`px-10 py-4 rounded-full ${s.surface} text-[15px] font-bold tracking-tight hover:brightness-110 active:scale-95 transition-all shadow-sm border ${s.divider}`}>
@@ -668,7 +677,12 @@
                     <span className={`${s.muted} opacity-40 font-normal`}>•</span>
                     <div className={`flex items-center gap-1.5 ${s.readingGreen}`}>
                       <Clock size={18} />
-                      <span>読了目安 {calculateReadingTime(selectedPost)} 分</span>
+                      <span>
+                        {/* 💡 変更：詳細画面ヘッダーも「〇 分」に統一 */}
+                        {(selectedPost.hasAudio || selectedPost.audioUrl) && selectedPost.duration 
+                          ? `リスニング ${formatDurationToMinutes(selectedPost.duration)}`
+                          : `読了目安 ${calculateReadingTime(selectedPost)} 分`}
+                      </span>
                     </div>
                   </div>
                   <h1 style={h1Style} className={`${s.text} tracking-tighter`}>{selectedPost.title}</h1>
@@ -677,7 +691,6 @@
                 <div className="space-y-12">
                   <p style={bodyTextStyle} className="opacity-90 font-medium">{selectedPost.summary}</p>
 
-                  {/* 💡 変更：Podcast枠のデザイン（角丸・パディング・影・背景）をInfo枠と完全に統一 */}
                   {(selectedPost.audioUrl || selectedPost.hasAudio) && (
                     <div className={`p-8 rounded-[2rem] ${s.surface} shadow-sm border ${s.divider} flex flex-col gap-5 mt-12 mb-6`}>
                       <div className={`flex items-center gap-3 ${s.accent} font-bold text-lg`}>
@@ -701,7 +714,6 @@
                     </div>
                   )}
 
-                  {/* 💡 変更：Info枠のデザインをPodcast枠と統一し、文言を変更 */}
                   <div className={`p-8 rounded-[2rem] ${s.surface} flex items-center gap-6 shadow-sm border ${s.divider} mb-16`}>
                     <div className={`p-4 ${s.iconBg} rounded-[1.25rem] shrink-0`}>
                       <Info className={s.accent} size={28} />
