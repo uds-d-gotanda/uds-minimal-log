@@ -561,7 +561,7 @@
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {filteredPosts.map(post => (
-                        <article key={post.id} className={`${s.surface} p-8 rounded-[2rem] flex flex-col cursor-pointer transition-all duration-300 ${s.cardHover}`} onClick={() => handleOpenArticle(post)}>
+                        <article key={post.id} className={`${s.surface} p-8 rounded-[2rem] flex flex-col cursor-pointer transition-all duration-300 ${s.cardHover} group`} onClick={() => handleOpenArticle(post)}>
                             <div className="flex items-center justify-between mb-5">
                                 <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-md ${post.hasAudio || post.audioUrl ? (theme === 'dark' ? 'bg-[#F43F5E]/20 text-[#FB7185]' : 'bg-[#E11D48]/10 text-[#E11D48]') : `${s.iconBg} ${s.accent}`}`}>
                                     {post.hasAudio || post.audioUrl ? "Podcast" : "Article"}
